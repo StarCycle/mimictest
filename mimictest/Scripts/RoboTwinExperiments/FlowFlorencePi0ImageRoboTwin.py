@@ -71,14 +71,14 @@ if __name__ == '__main__':
 
     # Training
     num_training_epochs = 50
-    save_interval = 5000
+    save_interval = 1000
     load_batch_id = 0
     gradient_accumulation_steps = 2
     lr_max = 1e-4
     warmup_steps = 5
     weight_decay = 1e-4
     max_grad_norm = 10
-    print_interval = 28
+    print_interval = 550
     use_wandb = False
     do_watch_parameters = False
     record_video = True
@@ -128,7 +128,6 @@ if __name__ == '__main__':
         batch_size=bs_per_gpu,
         shuffle=True,
         num_workers=workers_per_gpu,
-        drop_last=True,     
     )
     test_loader = DataLoader(
         dataset=test_dataset,
@@ -136,7 +135,6 @@ if __name__ == '__main__':
         batch_size=bs_per_gpu,
         shuffle=True,
         num_workers=workers_per_gpu,
-        drop_last=True,     
     )
     net = FlorencePi0Net(
         path=model_path,

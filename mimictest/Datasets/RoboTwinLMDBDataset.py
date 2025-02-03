@@ -98,7 +98,7 @@ class RoboTwinLMDBDataset(Dataset):
         self.obs_horizon = obs_horizon
         self.chunk_size = chunk_size
         self.reader = RoboTwinReader(dataset_path)
-        self.dummy_rgb = torch.zeros((obs_horizon, 4, 3) + RES, dtype=torch.uint8) # (t v c h w)
+        self.dummy_rgb = torch.zeros((obs_horizon, len(CAMERAS), 3) + RES, dtype=torch.uint8) # (t v c h w)
         self.dummy_pos = torch.zeros((obs_horizon+chunk_size, 14)) 
         self.dummy_mask = torch.zeros(obs_horizon+chunk_size)
         self.start_step = int(self.reader.dataset_len * start_ratio)

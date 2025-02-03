@@ -26,7 +26,7 @@ if __name__ == '__main__':
     abs_mode = True # relative EE action space or absolute EE action space
     folder_name = 'droid_lmdb'
     dataset_path = Path('/root/autodl-tmp/') / folder_name
-    bs_per_gpu = 1 # TODO
+    bs_per_gpu = 32 
     workers_per_gpu = 12 
     cache_ratio = 2
 

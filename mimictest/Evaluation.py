@@ -93,4 +93,4 @@ class Evaluation():
                             clip = ImageSequenceClip(videos[camera_id][env_id], fps=30)
                             clip.write_gif(self.save_path / (prefix+f'_camera{camera_id}.gif'), fps=30)
             total_rewards /= num_eval_ep
-        return total_rewards.mean() 
+        return torch.from_numpy(total_rewards).mean() 

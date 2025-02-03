@@ -86,14 +86,14 @@ def train(
             
             if batch_idx_cross_epoch % print_interval == 0 and batch_idx_cross_epoch != 0:
                 if eva is not None:
-                    avg_reward = torch.tensor(eva.evaluate_on_env(
+                    avg_reward = eva.evaluate_on_env(
                         acc,
                         policy, 
                         batch_idx_cross_epoch,
                         num_eval_ep, 
                         max_test_ep_len,
                         record_video,
-                    )).to(device)
+                    ).to(device)
                     avg_reward = acc.gather_for_metrics(avg_reward).mean(dim=0)
 
                 avg_metric['dataload_percent_first_gpu'] = avg_metric['dataload_time'] * print_interval / (time()-clock)
