@@ -53,8 +53,9 @@ class DiffusionPolicy(BasePolicy):
             )
     
     def compute_loss(self, batch):
-        device = batch['rgb'].device
-        B = batch['rgb'].shape[0]
+        sample_key = list(batch.keys())[0]
+        device = batch[sample_key].device
+        B = batch[sample_key].shape[0]
 
         # sample a diffusion iteration for each data point
         batch['timesteps'] = torch.randint(
@@ -117,8 +118,9 @@ class DiffusionPolicy(BasePolicy):
         return loss
 
     def infer(self, batch):
-        device = batch['rgb'].device
-        B = batch['rgb'].shape[0]
+        sample_key = list(batch.keys())[0]
+        device = batch[sample_key].device
+        B = batch[sample_key].shape[0]
 
         batch['noisy_inputs'] = {}
         for key in self.loss_configs:

@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import torch
 from torchvision.transforms.v2 import Resize, RandomCrop, CenterCrop, ColorJitter
 import mimictest.Utils.RotationConversions as rot
@@ -31,14 +32,15 @@ class PreProcess():
         self.configs = process_configs
         for key in self.configs:
             if 'rgb_shape' in self.configs[key]:
-                self.configs[key]['train_transforms'] = torch.nn.Sequential(
-                    Resize(self.configs[key]['rgb_shape'], antialias=True),
-                    RandomCrop(self.configs[key]['crop_shape']),
-                )
-                self.configs[key]['eval_transforms'] = torch.nn.Sequential(
-                    Resize(self.configs[key]['rgb_shape'], antialias=True),
-                    RandomCrop(self.configs[key]['crop_shape']),
-                )
+                train_transforms = OrderedDict()
+                eval_transforms = OrderedDict()
+                train_transforms['resize'] = Resize(self.configs[key]['rgb_shape'], antialias=True)
+                eval_transforms['resize'] = Resize(self.configs[key]['rgb_shape'], antialias=True)
+                if 'crop_shape' in self.configs[key]:
+                    train_transforms['crop'] = RandomCrop(self.configs[key]['crop_shape'])
+                    eval_transforms['crop'] = CenterCrop(self.configs[key]['crop_shape'])
+                self.configs[key]['train_transforms'] = torch.nn.Sequential(train_transforms)
+                self.configs[key]['eval_transforms'] = torch.nn.Sequential(eval_transforms)
             if "max" in self.configs[key]:
                 self.configs[key]['max'] = self.configs[key]['max'].to(device)
                 self.configs[key]['min'] = self.configs[key]['min'].to(device)

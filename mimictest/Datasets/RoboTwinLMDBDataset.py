@@ -1,6 +1,7 @@
 import os
 import json
 import lmdb
+import zlib
 from pickle import loads, dumps
 from pathlib import Path
 import random
@@ -8,8 +9,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from torchvision.io import decode_jpeg
-from torchvision.transforms.functional import resize
+from torchvision.transforms.functional import resize, InterpolationMode
 from mimictest.Utils.PreProcess import action_axis_to_6d, action_6d_to_axis, action_euler_to_6d, action_6d_to_euler
+from mimictest.Utils.Deproject import deproject
 from tqdm import tqdm
 
 CAMERAS = ['head_camera', 'left_camera', 'right_camera', 'front_camera']
@@ -40,7 +42,7 @@ class RoboTwinReader():
             self.txns.append(txn)
         self.res = {}
         for camera in CAMERAS:
-            self.res[camera] = self.txns[0].get(f'{camera}_res'.encode())
+            self.res[camera] = loads(self.txns[0].get(f'{camera}_res'.encode()))
 
     def close_lmdb(self):
         for txn in self.txns:
@@ -76,6 +78,21 @@ class RoboTwinReader():
             img[camera] = decode_jpeg(loads(self.txns[split_id].get(f'{camera}_rgb_{idx}'.encode())))
         return img
     
+    def get_depth(self, idx):
+        if self.envs == []:
+            self.open_lmdb()
+        split_id = self.get_split_id(idx, self.max_steps)
+        depth = {}
+        for camera in CAMERAS:
+            depth[camera] = torch.from_numpy(
+                np.frombuffer(
+                    zlib.decompress(
+                        loads(self.txns[split_id].get(f'{camera}_depth_{idx}'.encode())),
+                    ),
+                ).reshape(self.res[camera]).copy(),
+            ).float().unsqueeze(0) / 1000 # cam2world matrix is in meter
+        return depth
+    
     def get_pcd(self, idx):
         if self.envs == []:
             self.open_lmdb()
@@ -90,8 +107,11 @@ class RoboTwinReader():
         others = {}
         others['joint_action'] = loads(self.txns[split_id].get(f'joint_action_{idx}'.encode()))
         others['endpose'] = loads(self.txns[split_id].get(f'endpose_{idx}'.encode()))
+        for camera in CAMERAS:
+            others[f'{camera}_intrinsic_cv'] = torch.from_numpy(loads(self.txns[split_id].get(f'{camera}_intrinsic_cv_{idx}'.encode())))
+            others[f'{camera}_cam2world_gl'] = torch.from_numpy(loads(self.txns[split_id].get(f'{camera}_cam2world_gl_{idx}'.encode())))
         return others
-    
+
 class RoboTwinLMDBDataset(Dataset):
 
     def __init__(self, dataset_path, obs_horizon, chunk_size, start_ratio, end_ratio):
@@ -99,6 +119,9 @@ class RoboTwinLMDBDataset(Dataset):
         self.chunk_size = chunk_size
         self.reader = RoboTwinReader(dataset_path)
         self.dummy_rgb = torch.zeros((obs_horizon, len(CAMERAS), 3) + RES, dtype=torch.uint8) # (t v c h w)
+        self.dummy_coord = torch.zeros((obs_horizon, len(CAMERAS), 3) + RES) # (t v c h w)
+        self.dummy_intrinsic = torch.zeros((obs_horizon, len(CAMERAS), 3, 3))
+        self.dummy_cam2world = torch.zeros((obs_horizon, len(CAMERAS), 4, 4))
         self.dummy_pos = torch.zeros((obs_horizon+chunk_size, 14)) 
         self.dummy_mask = torch.zeros(obs_horizon+chunk_size)
         self.start_step = int(self.reader.dataset_len * start_ratio)
@@ -123,7 +146,10 @@ class RoboTwinLMDBDataset(Dataset):
         idx = idx + self.start_step
 
         rgb = self.dummy_rgb.clone()
+        coord = self.dummy_coord.clone()
         pos = self.dummy_pos.clone()
+        intrinsic = self.dummy_intrinsic.clone()
+        cam2world = self.dummy_cam2world.clone()
         mask = self.dummy_mask.clone()
         
         episode_id = self.reader.get_episode(idx)
@@ -140,9 +166,29 @@ class RoboTwinLMDBDataset(Dataset):
             if self.reader.get_episode(idx + pos_idx) == episode_id:
                 pos[pos_idx] = torch.from_numpy(others['joint_action'])
                 mask[pos_idx] = 1
+                if pos_idx < self.obs_horizon:
+                    for cam_id, camera in enumerate(CAMERAS):
+                        intrinsic[pos_idx, cam_id] = others[f'{camera}_intrinsic_cv']
+                        cam2world[pos_idx, cam_id] = others[f'{camera}_cam2world_gl']
+
+        for obs_idx in range(self.obs_horizon):
+            read_depth = self.reader.get_depth(idx + obs_idx)
+            if self.reader.get_episode(idx + obs_idx) == episode_id:
+                for cam_id, camera in enumerate(CAMERAS):
+                    points = deproject(
+                        intrinsic[obs_idx, cam_id], 
+                        cam2world[obs_idx, cam_id],
+                        read_depth[camera][0],
+                    )
+                    coord[obs_idx, cam_id] = resize(
+                        points, 
+                        RES,
+                        interpolation=InterpolationMode.NEAREST,
+                    )
         
         return {
             "rgb": rgb,
+            "coord": coord,
             "low_dim": pos[:self.obs_horizon],
             "action": pos[self.obs_horizon:],
             "mask": mask[self.obs_horizon:],
