@@ -41,7 +41,11 @@ if __name__ == '__main__':
             'max': torch.tensor(1.0),
             'min': torch.tensor(0.0),
         },
-        'coord': {},
+        'coord': {
+            'rgb_shape': (320, 320), 
+            'max': torch.tensor([0.8958, 0.4029, 1.2061]).view(3, 1, 1),
+            'min': torch.tensor([-0.6189, -0.3736,  0.3634]).view(3, 1, 1),
+        },
         'low_dim': {
             'max': None, # to be filled
             'min': None,

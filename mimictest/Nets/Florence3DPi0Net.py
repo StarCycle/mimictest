@@ -21,6 +21,58 @@ class SinusoidalPosEmb(nn.Module):
         emb = torch.cat((emb.sin(), emb.cos()), dim=-1)
         return emb
 
+class Emb3D(nn.Module):
+    """Absolute pos embedding, learned.
+    https://github.com/kwea123/nerf_pl/blob/52aeb387da64a9ad9a0f914ea9b049ffc598b20c/models/nerf.py#L4
+    """
+
+    def __init__(self, in_channels, out_channels, n_freqs=8, logscale=True):
+        super().__init__()
+        self.n_freqs = n_freqs
+        self.freq_out_channels = in_channels * (2 * n_freqs + 1)
+        if logscale:
+            freq_bands = 2 ** torch.linspace(0, n_freqs - 1, n_freqs)
+        else:
+            freq_bands = torch.linspace(1, 2 ** (n_freqs - 1), n_freqs)
+        
+        self.register_buffer("freq_bands", freq_bands, persistent=False)
+
+        self.position_embedding_head = nn.Sequential(
+            nn.Linear(self.freq_out_channels, out_channels),
+            nn.LayerNorm(out_channels),
+            nn.ReLU(),
+            nn.Linear(out_channels, out_channels),
+        )
+        self._reset_parameters()
+
+    def _reset_parameters(self):
+        """init with small weights to maintain stable training."""
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p, gain=0.01)
+
+    @torch.no_grad()
+    def frequency_encoding(self, xyz):
+        """
+        Embeds x to (x, sin(2^k x), cos(2^k x), ...)
+        Different from the paper, "x" is also in the output
+        See https://github.com/bmild/nerf/issues/12
+        Inputs:
+            x: (b n m)
+        Outputs:
+            out: (b n o)
+        """
+        xyz_feq = xyz.unsqueeze(-1) * self.freq_bands  # (b n m nf)
+        sin_xyz, cos_xyz = torch.sin(xyz_feq), torch.cos(xyz_feq)  # (b n m nf)
+        encoding = torch.cat([xyz.unsqueeze(-1), sin_xyz, cos_xyz], -1).reshape(*xyz.shape[:2], -1) # (b n m*(2*nf+1))
+        return encoding
+
+    def forward(self, xyz):
+        """Forward pass, xyz is (B, N, 3or6), output (B, N, F)."""
+        freq_encoding = self.frequency_encoding(xyz)
+        position_embedding = self.position_embedding_head(freq_encoding)
+        return position_embedding
+
 class Florence3DPi0Net(nn.Module):
     def __init__(
             self,
@@ -35,7 +87,7 @@ class Florence3DPi0Net(nn.Module):
         if freeze_vision_tower:
             for param in self.net.vision_tower.parameters():
                 param.requires_grad = False
-        self.position_embedding_3d = nn.Linear(3, self.net.vision_tower.convs[-1].proj.out_channels)
+        self.position_embedding_3d = Emb3D(3, self.net.vision_tower.convs[-1].proj.out_channels)
 
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         self.tokenizer = AutoProcessor.from_pretrained(path, trust_remote_code=True).tokenizer
