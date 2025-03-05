@@ -1,6 +1,6 @@
 from collections import OrderedDict
 import torch
-from torchvision.transforms.v2 import Resize, RandomCrop, CenterCrop, ColorJitter
+from torchvision.transforms.functional import resize, crop, center_crop, InterpolationMode
 import mimictest.Utils.RotationConversions as rot
 
 def action_euler_to_6d(rot_euler):
@@ -31,28 +31,33 @@ class PreProcess():
         ):
         self.configs = process_configs
         for key in self.configs:
-            if 'rgb_shape' in self.configs[key]:
-                train_transforms = OrderedDict()
-                eval_transforms = OrderedDict()
-                train_transforms['resize'] = Resize(self.configs[key]['rgb_shape'], antialias=True)
-                eval_transforms['resize'] = Resize(self.configs[key]['rgb_shape'], antialias=True)
-                if 'crop_shape' in self.configs[key]:
-                    train_transforms['crop'] = RandomCrop(self.configs[key]['crop_shape'])
-                    eval_transforms['crop'] = CenterCrop(self.configs[key]['crop_shape'])
-                self.configs[key]['train_transforms'] = torch.nn.Sequential(train_transforms)
-                self.configs[key]['eval_transforms'] = torch.nn.Sequential(eval_transforms)
             if "max" in self.configs[key]:
                 self.configs[key]['max'] = self.configs[key]['max'].to(device)
                 self.configs[key]['min'] = self.configs[key]['min'].to(device)
     
     def process(self, batch, train=False):
+        current_crop_params = None
         for key in batch:
-            if 'rgb_shape' in self.configs[key]: # image data
+            if 'img_shape' in self.configs[key]: # image data
+                batch[key] = resize(
+                    batch[key], 
+                    self.configs[key]['img_shape'], 
+                    antialias=True,
+                    interpolation=InterpolationMode.NEAREST
+                )
                 if train:
-                    batch[key] = self.configs[key]['train_transforms'](batch[key])
+                    if "crop_shape" in self.configs[key]:
+                        if current_crop_params is None:
+                            h, w = batch[key].shape[-2:]
+                            crop_h, crop_w = self.configs[key]['crop_shape']
+                            top = torch.randint(0, h - crop_h + 1, (1,)).item()
+                            left = torch.randint(0, w - crop_w + 1, (1,)).item()
+                            current_crop_params = (top, left, crop_h, crop_w)
+                        batch[key] = crop(batch[key], *current_crop_params)
                 else:
-                    batch[key] = self.configs[key]['eval_transforms'](batch[key])
-                batch[key] = batch[key].float() / 255.
+                    batch[key] = center_crop(batch[key], self.configs[key]['crop_shape'])
+                if key == 'rgb':
+                    batch[key] = batch[key].float() / 255.
             if 'enable_6d_rot' in self.configs[key]:
                 if self.configs[key]['abs_mode']:
                     rot_axis = batch[key][..., 3:6]
@@ -71,9 +76,10 @@ class PreProcess():
             if "max" in self.configs[key]:
                 batch[key] = (batch[key] + 1) * 0.5 # from (-1, 1) to (0, 1)
                 batch[key] = batch[key] * (self.configs[key]['max'] - self.configs[key]['min']) + self.configs[key]['min']
-            if 'rgb_shape' in self.configs[key]: # image data
-                batch[key] = torch.clamp(batch[key], 0, 1)
-                batch[key] = batch[key] * 255.
+            if 'img_shape' in self.configs[key]:
+                if key == 'rgb':
+                    batch[key] = torch.clamp(batch[key], 0, 1)
+                    batch[key] = batch[key] * 255.
             if 'enable_6d_rot' in self.configs[key]:
                 rot_6d = batch[key][..., 3:9]
                 if self.configs[key]['abs_mode']:

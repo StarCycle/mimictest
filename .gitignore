@@ -1,6 +1,6 @@
 __pycache__/
 wandb/
-Save/
+Save*/
 *.egg-info/
 *.pth
 277ab9588ad7a4f4b55cf75508b44aa67ec171f0.tar.gz

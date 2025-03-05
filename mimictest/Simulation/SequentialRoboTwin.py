@@ -26,8 +26,9 @@ class RoboTwinPolicy():
             self.video = []
 
     def log_video(self, seed):
-        clip = ImageSequenceClip(self.video, fps=30)
-        clip.write_gif(self.save_path / (f'seed{seed}.gif'), fps=30)                                 
+        if self.record_video:
+            clip = ImageSequenceClip(self.video, fps=30)
+            clip.write_gif(self.save_path / (f'seed{seed}.gif'), fps=30)                                 
 
     def fill_buffer(self, rgb, coord, low_dim):
         if len(self.rgb_buffer) == 0: # Fill the buffer

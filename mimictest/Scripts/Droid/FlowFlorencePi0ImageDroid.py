@@ -38,7 +38,7 @@ if __name__ == '__main__':
     chunk_size = 20
     process_configs = {
         'rgb': {
-            'rgb_shape': (320, 320), # Initial resolution is (180, 320)
+            'img_shape': (320, 320), # Initial resolution is (180, 320)
             'crop_shape': (280, 280),
             'max': torch.tensor(1.0),
             'min': torch.tensor(0.0),

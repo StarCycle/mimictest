@@ -24,9 +24,9 @@ if __name__ == '__main__':
 
     # Dataset
     abs_mode = True # relative EE action space or absolute EE action space
-    folder_name = 'lmdb_ds'
-    dataset_path = Path('/root/autodl-tmp/RoboTwin/data') / folder_name
-    bs_per_gpu = 64
+    folder_name = 'lmdb_50ep_blockhammerbeat'
+    dataset_path = Path('/home/lizhuoheng/RoboTwin/data') / folder_name
+    bs_per_gpu = 40
     workers_per_gpu = 12 
     cache_ratio = 2
 
@@ -37,11 +37,12 @@ if __name__ == '__main__':
     chunk_size = 20
     process_configs = {
         'rgb': {
-            'rgb_shape': (320, 320), # Initial resolution is (180, 320)
+            'img_shape': (320, 320), # Initial resolution is (180, 320)
             'crop_shape': (280, 280),
             'max': torch.tensor(1.0),
             'min': torch.tensor(0.0),
         },
+        'coord': {},
         'low_dim': {
             'max': None, # to be filled
             'min': None,
@@ -71,14 +72,14 @@ if __name__ == '__main__':
 
     # Training
     num_training_epochs = 50
-    save_interval = 1000
+    save_interval = 100
     load_batch_id = 0
     gradient_accumulation_steps = 2
-    lr_max = 1e-4
+    lr_max = 3e-4
     warmup_steps = 5
     weight_decay = 1e-4
     max_grad_norm = 10
-    print_interval = 550
+    print_interval = 50
     use_wandb = False
     do_watch_parameters = False
     record_video = True

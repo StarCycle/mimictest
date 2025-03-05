@@ -42,7 +42,7 @@ if __name__ == '__main__':
     chunk_size = 16
     process_configs = {
         'rgb': {
-            'rgb_shape': (84, 84),
+            'img_shape': (84, 84),
             'crop_shape': (76, 76),
             'max': torch.tensor(1.0),
             'min': torch.tensor(0.0),

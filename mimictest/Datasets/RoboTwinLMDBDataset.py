@@ -185,7 +185,6 @@ class RoboTwinLMDBDataset(Dataset):
                         RES,
                         interpolation=InterpolationMode.NEAREST,
                     )
-        
         return {
             "rgb": rgb,
             "coord": coord,

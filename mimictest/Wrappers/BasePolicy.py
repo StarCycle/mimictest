@@ -54,14 +54,14 @@ class BasePolicy():
         if os.path.isfile(path / "wandb_id.json"):
             run_id = json.load(open(path / "wandb_id.json", "r"))
             acc.init_trackers(
-                project_name="droidflow", 
+                project_name="robotwin", 
                 init_kwargs={"wandb": {"id": run_id, "resume": "allow"}}
             )
             if acc.is_main_process:
                 if do_watch_parameters:
                     wandb.watch(self.net, log="all", log_freq=save_interval)
         else: 
-            acc.init_trackers(project_name="droidflow")
+            acc.init_trackers(project_name="robotwin")
             if acc.is_main_process:
                 tracker = acc.get_tracker("wandb")
                 json.dump(tracker.run.id, open(path / "wandb_id.json", "w"))

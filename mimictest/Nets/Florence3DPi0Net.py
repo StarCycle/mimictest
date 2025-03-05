@@ -122,29 +122,35 @@ class Florence3DPi0Net(nn.Module):
         )
         B_T_V, N, D = rgb_feature.shape
         H1 = W1 = int(N ** 0.5)
-        rgb_feature = rgb_feature.view(B*T, V*N, D)
 
+        # Add 2d pos emb
+        rgb_feature = rgb_feature.view(B_T_V, H1, W1, D)
+        pos_embed_2d = self.net.image_pos_embed(rgb_feature)
+        rgb_feature = rgb_feature + pos_embed_2d
+
+        # Add 3d pos emb
+        rgb_feature = rgb_feature.view(B*T, V*N, D)
         B, T, V, C, H, W = coord.shape
         coord = coord.reshape(B*T*V, C, H, W)
-        coord = F.avg_pool2d(coord, kernel_size=(H//H1,H//H1), stride=(W//W1,W//W1))
+        coord = F.avg_pool2d(coord, kernel_size=(H//H1,W//W1), stride=(H//H1,W//W1))
         B_T_V, C, H, W = coord.shape
         coord = coord.permute(0, 2, 3, 1).reshape(B*T, V*H*W, C)
         pos_embed_3d = self.position_embedding_3d(coord)
         x = rgb_feature + pos_embed_3d
 
         if self.net.visual_temporal_embed is not None:
-            visual_temporal_embed = self.net.visual_temporal_embed(x.view(B*T, 1, V*N, D)[:, :, 0])
-            x = x.view(B*T, 1, V*N, D) + visual_temporal_embed.view(1, 1, 1, D)
+            visual_temporal_embed = self.net.visual_temporal_embed(x.view(B_T_V, 1, N, D)[:, :, 0])
+            x = x.view(B_T_V, 1, N, D) + visual_temporal_embed.view(1, 1, 1, D)
 
         x_feat_dict = {}
 
-        spatial_avg_pool_x = x.view(B*T, 1, V*N, D).mean(dim=2)
+        spatial_avg_pool_x = x.view(B_T_V, 1, N, D).mean(dim=2)
         x_feat_dict['spatial_avg_pool'] = spatial_avg_pool_x
 
-        temporal_avg_pool_x = x.view(B*T, 1, V*N, D).mean(dim=1)
+        temporal_avg_pool_x = x.view(B_T_V, 1, N, D).mean(dim=1)
         x_feat_dict['temporal_avg_pool'] = temporal_avg_pool_x
 
-        x = x.view(B*T, 1, V*N, D)[:, -1]
+        x = x.view(B_T_V, 1, N, D)[:, -1]
         x_feat_dict['last_frame'] = x
 
         new_x = []
@@ -164,8 +170,8 @@ class Florence3DPi0Net(nn.Module):
         if batch['obs_features'] is None:
             B, T, V, C, H, W = batch['rgb'].shape
             rgb_features = self._encode_image(batch['rgb'], batch['coord'])
-            B_T, N, D = rgb_features.shape
-            rgb_features = rgb_features.view(B, T*N, D)
+            B_T_V, N, D = rgb_features.shape
+            rgb_features = rgb_features.view(B, T*V*N, D)
             
             text_embeds = self.prompt_embeds.repeat(B, 1, 1) # (b n d)
             if "inst_token" in batch:
