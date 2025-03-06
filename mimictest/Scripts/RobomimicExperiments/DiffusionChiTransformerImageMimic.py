@@ -72,14 +72,16 @@ if __name__ == '__main__':
     # Training
     num_training_epochs = 1000
     save_interval = 50 
-    load_epoch_id = 0
+    load_batch_id = 0
     gradient_accumulation_steps = 1
     lr_max = 3e-4
     warmup_steps = 5
     weight_decay = 1e-4
     max_grad_norm = 10
     print_interval = 22
+    eval_interval = print_interval * 20
     use_wandb = False
+    wandb_name = "robomimic"
     do_watch_parameters = False
     record_video = False
 
@@ -159,9 +161,9 @@ if __name__ == '__main__':
         clip_sample=clip_sample,
         prediction_type=prediction_type,
     )
-    policy.load_pretrained(acc, save_path, load_epoch_id) 
+    policy.load_pretrained(acc, save_path, load_batch_id) 
     if use_wandb:
-        policy.load_wandb(acc, save_path, do_watch_parameters, save_interval)
+        policy.load_wandb(acc, wandb_name, save_path, do_watch_parameters, save_interval)
     optimizer = torch.optim.AdamW(policy.parameters(), lr=lr_max, weight_decay=weight_decay, fused=True)
     scheduler = get_constant_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps)
     policy.net, policy.ema_net, optimizer, loader = acc.prepare(
@@ -188,9 +190,10 @@ if __name__ == '__main__':
             max_test_ep_len=max_test_ep_len,
             device=device,
             save_path=save_path,
-            load_epoch_id=load_epoch_id,
+            load_batch_id=load_batch_id,
             save_interval=save_interval,
             print_interval=print_interval,
+            eval_interval=eval_interval,
             bs_per_gpu=bs_per_gpu,
             max_grad_norm=max_grad_norm,
             use_wandb=use_wandb,

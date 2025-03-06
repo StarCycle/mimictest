@@ -311,6 +311,12 @@ wget https://github.com/Dao-AILab/flash-attention/releases/download/v2.6.3/flash
 pip install flash_attn-2.6.3+cu118torch2.4cxx11abiTRUE-cp39-cp39-linux_x86_64.whl
 ```
 
+You can also compile flash-attn with multiple processes:
+```
+pip install ninja   
+MAX_JOBS=64 pip install -v flash-attn --no-build-isolation
+```
+
 When installing pytorch, make sure the torch cuda version and your cuda driver version are the same (e.g., 11.8).
 
 3. Cannot initialize a EGL device display
@@ -337,7 +343,7 @@ You can try `conda install -c conda-forge mesa-libgl-devel-cos7-x86_64` or check
 
 6. `SystemError: initialization of _internal failed without raising an exception`.
 
-You can simply `pip -U numba` or this [link](https://stackoverflow.com/questions/74947992/how-to-remove-the-error-systemerror-initialization-of-internal-failed-without).
+You can simply `pip install -U numba` or this [link](https://stackoverflow.com/questions/74947992/how-to-remove-the-error-systemerror-initialization-of-internal-failed-without).
 
 7. `ImportError: libGL.so.1: cannot open shared object file`
 ```
@@ -364,3 +370,7 @@ pip install -U numba
 11. `AttributeError: module 'OpenGL.EGL' has no attribute 'EGLDeviceEXT'`
 
 Ensure PyOpenGL version is v3.1.4 and not v3.1.0
+
+12. `version `GLIBC_2.32' not found`
+
+Check this [link](https://blog.csdn.net/huazhang_001/article/details/128828999)

@@ -81,6 +81,7 @@ if __name__ == '__main__':
     max_grad_norm = 10
     print_interval = 50
     use_wandb = False
+    wandb_name = "robotwin"
     do_watch_parameters = False
     record_video = True
     loss_configs = {
@@ -157,7 +158,7 @@ if __name__ == '__main__':
     )
     policy.load_pretrained(acc, save_path, load_batch_id)
     if use_wandb:
-        policy.load_wandb(acc, save_path, do_watch_parameters, save_interval)
+        policy.load_wandb(acc, wandb_name, save_path, do_watch_parameters, save_interval)
     optimizer = torch.optim.AdamW(policy.parameters(), lr=lr_max, weight_decay=weight_decay, fused=True)
     scheduler = get_constant_schedule_with_warmup(
         optimizer, 

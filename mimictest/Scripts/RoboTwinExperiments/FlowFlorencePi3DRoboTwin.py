@@ -25,7 +25,7 @@ if __name__ == '__main__':
     # Dataset
     abs_mode = True # relative EE action space or absolute EE action space
     folder_name = 'lmdb_blockhammerbeat_50ep'
-    dataset_path = Path('/root/autodl-tmp/RoboTwin/data') / folder_name
+    dataset_path = Path('/home/lizhuoheng/RoboTwin/data') / folder_name
     bs_per_gpu = 40
     workers_per_gpu = 12
     cache_ratio = 2
@@ -85,7 +85,9 @@ if __name__ == '__main__':
     weight_decay = 1e-4
     max_grad_norm = 10
     print_interval = 50
+    eval_interval = print_interval
     use_wandb = True
+    wandb_name = "robotwin"
     do_watch_parameters = False
     record_video = True
     loss_configs = {
@@ -162,7 +164,7 @@ if __name__ == '__main__':
     )
     policy.load_pretrained(acc, save_path, load_batch_id)
     if use_wandb:
-        policy.load_wandb(acc, save_path, do_watch_parameters, save_interval)
+        policy.load_wandb(acc, wandb_name, save_path, do_watch_parameters, save_interval)
     optimizer = torch.optim.AdamW(policy.parameters(), lr=lr_max, weight_decay=weight_decay, fused=True)
     scheduler = get_constant_schedule_with_warmup(
         optimizer, 
@@ -205,6 +207,7 @@ if __name__ == '__main__':
             load_batch_id=load_batch_id,
             save_interval=save_interval,
             print_interval=print_interval,
+            eval_interval=eval_interval,
             bs_per_gpu=bs_per_gpu,
             max_grad_norm=max_grad_norm,
             use_wandb=use_wandb,
