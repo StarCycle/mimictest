@@ -77,6 +77,7 @@ class Florence3DPi0Net(nn.Module):
     def __init__(
             self,
             path,
+            pos_reso_3d,
             lowdim_obs_dim,
             num_actions,
             freeze_vision_tower,
@@ -87,7 +88,8 @@ class Florence3DPi0Net(nn.Module):
         if freeze_vision_tower:
             for param in self.net.vision_tower.parameters():
                 param.requires_grad = False
-        self.position_embedding_3d = Emb3D(3, self.net.vision_tower.convs[-1].proj.out_channels)
+        self.pos_reso_3d = pos_reso_3d
+        self.position_embedding_3d = Emb3D(3 * pos_reso_3d**2, self.net.vision_tower.convs[-1].proj.out_channels)
 
         os.environ['TOKENIZERS_PARALLELISM'] = 'true'
         self.tokenizer = AutoProcessor.from_pretrained(path, trust_remote_code=True).tokenizer
@@ -132,10 +134,12 @@ class Florence3DPi0Net(nn.Module):
         rgb_feature = rgb_feature.view(B*T, V*N, D)
         B, T, V, C, H, W = coord.shape
         coord = coord.reshape(B*T*V, C, H, W)
-        coord = F.avg_pool2d(coord, kernel_size=(H//H1,W//W1), stride=(H//H1,W//W1))
-        B_T_V, C, H, W = coord.shape
-        coord = coord.permute(0, 2, 3, 1).reshape(B*T, V*H*W, C)
-        pos_embed_3d = self.position_embedding_3d(coord)
+        interpolate_size = (H1*self.pos_reso_3d, W1*self.pos_reso_3d)
+        pool_coord = F.interpolate(coord, size=interpolate_size, mode='nearest')
+        B_T_V, C, _, _ = pool_coord.shape
+        pool_coord = pool_coord.reshape(B_T_V, C, H1, self.pos_reso_3d, W1, self.pos_reso_3d).permute(0, 2, 4, 1, 3, 5)
+        pool_coord = pool_coord.reshape(B*T, V*H1*W1, C*self.pos_reso_3d**2)
+        pos_embed_3d = self.position_embedding_3d(pool_coord)
         x = rgb_feature + pos_embed_3d
 
         if self.net.visual_temporal_embed is not None:

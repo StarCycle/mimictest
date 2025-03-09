@@ -45,8 +45,6 @@ if __name__ == '__main__':
         'coord': {
             'img_shape': (320, 320), 
             'crop_shape': (280, 280),
-            'max': torch.tensor([0.8958, 0.4029, 1.2061]).view(3, 1, 1),
-            'min': torch.tensor([-0.6189, -0.3736,  0.3634]).view(3, 1, 1),
         },
         'low_dim': {
             'max': None, # to be filled
@@ -61,6 +59,7 @@ if __name__ == '__main__':
 
     # Network
     model_path = Path("microsoft/Florence-2-base")
+    pos_reso_3d = 8
     freeze_vision_tower = True
     freeze_florence = False
     do_compile = False
@@ -77,9 +76,9 @@ if __name__ == '__main__':
 
     # Training
     num_training_epochs = 100
-    save_interval = 1000
-    load_batch_id = 0
-    gradient_accumulation_steps = 2
+    save_interval = 500
+    load_batch_id = 5000
+    gradient_accumulation_steps = 1
     lr_max = 1e-4
     warmup_steps = 5
     weight_decay = 1e-4
@@ -146,6 +145,7 @@ if __name__ == '__main__':
     )
     net = Florence3DPi0Net(
         path=model_path,
+        pos_reso_3d=pos_reso_3d,
         freeze_vision_tower=freeze_vision_tower,
         num_actions=num_actions,
         lowdim_obs_dim=lowdim_obs_dim,
